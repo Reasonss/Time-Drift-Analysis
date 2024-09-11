@@ -1,0 +1,132 @@
+#!/bin/bash
+
+# 获取真实时间的时间搓
+get_real_time() {
+    # Fetch the response from the API
+    response=$(curl -s http://worldtimeapi.org/api/ip)
+
+    # Use grep and sed to extract the 'unixtime'
+    unixtime=$(echo "$response" | grep -o '"unixtime":[0-9]*' | sed 's/"unixtime"://')
+
+    # Display the current time
+    echo "$unixtime"
+}
+
+# 获取设备的系统时间时间戳
+get_system_time() {
+    date +'%s'
+}
+
+# 获取设备的RTC时间戳
+get_rtc_time() {
+    # Fetch the RTC (hardware clock) time
+    rtc_time=$(hwclock)
+
+    # Convert RTC time to UNIX timestamp
+    unix_time=$(date -d "$rtc_time" +%s)
+
+    # Display the RTC time and UNIX timestamp
+    echo "$unix_time"
+}
+
+# 计算时间差
+calc_time_diff() {
+    echo $(( $1 - $2 ))
+}
+
+# 打印时间戳的时间
+printf_time() {
+    date -d @$1 +"%Y-%m-%d %H:%M:%S"
+}
+
+
+
+print_table() {
+    local headers=("$1")
+    shift
+    local data=("$@")
+    local column_width=30
+
+    # Function to calculate the real display width of a string (taking into account wide characters)
+    calculate_width() {
+        local str="$1"
+        local width=0
+
+        for ((i=0; i<${#str}; i++)); do
+            local char="${str:i:1}"
+            if [[ "$char" =~ [\x80-\xFF] ]]; then  # Check if the character is a wide character
+                ((width+=2))
+            else
+                ((width+=1))
+            fi
+        done
+        echo "$width"
+    }
+
+    # Function to center text within a given width
+    center_text() {
+        local text="$1"
+        local width=$2
+        local text_width
+        text_width=$(calculate_width "$text")
+        local padding
+        padding=$(( (width - text_width) / 2))
+        printf "%*s%s%*s" $padding "" "$text" $((width - text_width - padding)) ""
+    }
+
+    # Function to print a single line
+    print_line() {
+        local items=("$@")
+        for item in "${items[@]}"; do
+            local centered_item
+            centered_item=$(center_text "$item" "$column_width")
+            printf "%s" "$centered_item"
+        done
+        printf "\n"
+    }
+
+    # Split headers into an array
+    IFS=";" read -r -a header_array <<< "$headers"
+
+    # Print header
+    print_line "${header_array[@]}"
+
+    # Print data rows
+    for data_row in "${data[@]}"; do
+        IFS=";" read -r -a data_array <<< "$data_row"
+        print_line "${data_array[@]}"
+    done
+}
+
+
+# 初始化表头
+
+# print_table "测试时间(现实时间);设备系统时间;设备硬件时间;       漂移(软件-现实);           漂移(软件-硬件);         漂移(硬件-现实)"
+print_table "Real Time;Soft Time;Hw Time;       Drift(Soft - Real);       Drift(Soft - Hw);       Drift(Hw - Real)"
+
+while true; do
+    now=$(get_system_time)
+    real_time=$now
+    sys_time=$(get_system_time)
+    rtc_time=$(get_rtc_time)
+
+    # 如果获取真实时间失败，跳过本次循环
+    if [ "$real_time" -eq 0 ]; then
+        echo "Failed to get real time. Skipping this iteration."
+        sleep 60
+        continue
+    fi
+
+    # 计算时间漂移
+    drift_sys=$(calc_time_diff "$sys_time" "$real_time")
+    drift_real=$(calc_time_diff "$sys_time" "$rtc_time")
+    drift_rtc=$(calc_time_diff "$rtc_time" "$real_time")
+
+    # 输出结果将时间戳转换成时间
+    print_table "$(printf_time $now);$(printf_time $sys_time);$(printf_time $rtc_time);$drift_sys;$drift_real;$drift_rtc"
+
+    # 延迟1分钟
+    sleep 60
+done
+
+
