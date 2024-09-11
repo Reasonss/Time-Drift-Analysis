@@ -20,20 +20,20 @@ Before using the script, ensure the following tools are installed and accessible
 1. **Clone the script to your device**:
 
     ```sh
-    git clone https://github.com/yourrepo/time-offset-checker.git
-    cd time-offset-checker
+    git clone https://github.com/Reasonss/Time-Drift-Analysis.git
+    cd Time-Drift-Analysis
     ```
 
 2. **Make the script executable**:
 
     ```sh
-    chmod +x check_time_offset.sh
+    chmod +x Time-Drift-Analysis
     ```
 
 3. **Run the script**:
 
     ```sh
-    ./check_time_offset.sh
+    ./Time-Drift-Analysis
     ```
 
 ## Output
